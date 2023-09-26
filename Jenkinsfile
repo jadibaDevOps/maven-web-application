@@ -1,0 +1,32 @@
+node{
+echo "Jenkins url is: ${env.JENKINS_URL}"
+echo "Node name is: ${env.NODE_NAME}"
+echo "Job name is: ${env.JOB_NAME}"
+
+def mavenHome = tool name: 'maven3.9.4'
+properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')), pipelineTriggers([pollSCM('* * * * *')])])
+stage('CheckOutCode'){
+git branch: 'development', credentialsId: '2b13c096-58a1-49d6-b403-998bc9057bb1', url: 'https://github.com/jadibaDevOps/maven-web-application.git'
+}
+stage('Build'){
+sh "${mavenHome}/bin/mvn clean package"
+}
+stage('ExecuteSonarQubeReport')
+{
+sh "${mavenHome}/bin/mvn clean sonar:sonar"
+}
+stage('UploadArtifactsIntoArtifactoryRepo')
+{
+sh "${mavenHome}/bin/mvn clean deploy"
+}
+stage('DeployAppIntoTomcatServer')
+{
+sshagent (['348a9f4e-5cf2-4eff-8da7-030eedbbf430'])
+{
+sh "scp -o StrictHostKeyChecking=no /var/lib/jenkins/workspace/pipeline-scriptedway1/target/maven-web-application.war ec2-user@172.31.0.24:/opt/apache-tomcat-9.0.79/webapps"
+}
+}
+
+
+
+}
